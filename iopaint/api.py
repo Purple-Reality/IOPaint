@@ -361,34 +361,47 @@ class Api:
 
     def api_unity_image(self, req: UnityImageRequest):
         try:
+            logger.info("Received Unity image request")
             # Décodage de l'image base64
             image_data = base64.b64decode(req.image)
+            logger.info(f"Decoded base64 image, size: {len(image_data)} bytes")
             
             # Génération d'un nom de fichier unique avec timestamp
             timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = f"unity_image_{timestamp}.png"
+            logger.info(f"Generated filename: {filename}")
             
             # Sauvegarde de l'image dans le dossier de sortie
             if not self.config.output_dir:
+                logger.error("Output directory not configured")
                 raise HTTPException(status_code=400, detail="Output directory not configured")
             
             if not os.path.exists(self.config.output_dir):
+                logger.info(f"Creating output directory: {self.config.output_dir}")
                 os.makedirs(self.config.output_dir)
                 
             output_path = os.path.join(self.config.output_dir, filename)
+            logger.info(f"Saving image to: {output_path}")
             with open(output_path, "wb") as f:
                 f.write(image_data)
+            logger.info("Image saved successfully")
 
             # Encoder l'image reçue à nouveau en base64 pour l'envoyer via WebSocket
+            logger.info("Encoding image for WebSocket transmission")
             image_base64_encoded = base64.b64encode(image_data).decode('utf-8')
+            logger.info(f"Image encoded, length: {len(image_base64_encoded)}")
 
             # Émettre un événement WebSocket avec l'image base64
+            logger.info("Emitting WebSocket event")
             asyncio.run(global_sio.emit("unity_image_received", {"image": image_base64_encoded}))
+            logger.info("WebSocket event emitted successfully")
 
             return {"success": True, "message": "Image received and event emitted"}
 
         except Exception as e:
             # Afficher la traceback détaillée pour le débogage
+            logger.error(f"Error processing Unity image: {str(e)}")
+            logger.error("Full traceback:")
             traceback.print_exc()
             raise HTTPException(status_code=500, detail=str(e))
 

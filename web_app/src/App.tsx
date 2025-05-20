@@ -62,27 +62,36 @@ function Home() {
       console.log("Unity image received via WebSocket:", data);
       if (data && data.image) {
         try {
+          console.log("Processing received image data...");
           // Convert base64 to Blob
           const byteCharacters = atob(data.image);
+          console.log("Base64 decoded, length:", byteCharacters.length);
           const byteNumbers = new Array(byteCharacters.length);
           for (let i = 0; i < byteCharacters.length; i++) {
             byteNumbers[i] = byteCharacters.charCodeAt(i);
           }
           const byteArray = new Uint8Array(byteNumbers);
+          console.log("Created byte array, length:", byteArray.length);
           // Assumes PNG for now, adjust if needed based on actual image type
           const blob = new Blob([byteArray], { type: "image/png" }); 
+          console.log("Created blob:", blob.size, "bytes");
 
           // Convert Blob to File
           const file = new File([blob], "unity-image.png", { type: "image/png" });
+          console.log("Created file object:", file.name, file.size, "bytes");
 
           // Set the received file
+          console.log("Setting file in state...");
           setFile(file);
+          console.log("File set successfully");
 
         } catch (error) {
           console.error("Error processing received image via WebSocket:", error);
           // Afficher une notification d'erreur si nécessaire
           // toast({ variant: "destructive", description: "Failed to load image from Unity.", });
         }
+      } else {
+        console.warn("Received WebSocket event but no image data found:", data);
       }
     });
 
