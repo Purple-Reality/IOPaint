@@ -1,5 +1,6 @@
 import React from "react"
 import { useCallback, useEffect, useRef } from "react"
+import { io } from "socket.io-client";
 
 import useInputImage from "@/hooks/useInputImage"
 import { keepGUIAlive } from "@/lib/utils"
@@ -53,26 +54,45 @@ function Home() {
   }, [])
 
   useEffect(() => {
-    // Tentative de récupération automatique de l'image Unity au chargement
-    async function fetchUnityImage() {
-      try {
-        const res = await fetch(`${API_ENDPOINT}/unity_image`, {
-          method: "GET",
-        })
-        if (res.ok) {
-          const blob = await res.blob()
-          // On crée un File pour compatibilité avec setFile
-          const file = new File([blob], "unity-image.png", { type: blob.type || "image/png" })
-          setFile(file)
+    // Connect to Socket.IO server
+    const socket = io(API_ENDPOINT);
+
+    // Listener for unity_image_received event
+    socket.on("unity_image_received", async (data) => {
+      console.log("Unity image received via WebSocket:", data);
+      if (data && data.image) {
+        try {
+          // Convert base64 to Blob
+          const byteCharacters = atob(data.image);
+          const byteNumbers = new Array(byteCharacters.length);
+          for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+          }
+          const byteArray = new Uint8Array(byteNumbers);
+          // Assumes PNG for now, adjust if needed based on actual image type
+          const blob = new Blob([byteArray], { type: "image/png" }); 
+
+          // Convert Blob to File
+          const file = new File([blob], "unity-image.png", { type: "image/png" });
+
+          // Set the received file
+          setFile(file);
+
+        } catch (error) {
+          console.error("Error processing received image via WebSocket:", error);
+          // Afficher une notification d'erreur si nécessaire
+          // toast({ variant: "destructive", description: "Failed to load image from Unity.", });
         }
-      } catch (e) {
-        // Pas d'image Unity, on ne fait rien
       }
-    }
-    if (!file) {
-      fetchUnityImage()
-    }
-  }, [file, setFile])
+    });
+
+    // Clean up on component unmount
+    return () => {
+      console.log("Disconnecting Socket.IO");
+      socket.off("unity_image_received");
+      socket.disconnect();
+    };
+  }, [setFile]); // Dépendance à setFile
 
   const dragCounter = useRef(0)
 
