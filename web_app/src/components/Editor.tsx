@@ -531,9 +531,15 @@ export default function Editor(props: EditorProps) {
 
     try {
       const curRender = renders[renders.length - 1]
-      // Log pour vérifier la source de l'image rendue
-      console.log("Current render src:", curRender.currentSrc);
-      const imageBase64 = curRender.currentSrc.split(',')[1]
+
+      // Obtenir le Blob à partir de l'image rendue (URL blob:)
+      console.log("Attempting to convert blob URL to Blob:", curRender.currentSrc);
+      const response = await fetch(curRender.currentSrc);
+      const blob = await response.blob();
+      console.log("Blob created from render src, size:", blob.size);
+
+      // Convertir le Blob en base64
+      const imageBase64 = await convertToBase64(blob);
       
       // Log pour vérifier la chaîne base64 avant l'envoi
       console.log("Base64 image data length before sending:", imageBase64.length);
@@ -541,7 +547,7 @@ export default function Editor(props: EditorProps) {
 
       // Envoi de l'image traitée au backend pour Unity
       console.log("Sending processed image to backend for Unity...");
-      const response = await fetch(`${API_ENDPOINT}/send_to_unity`, {
+      const sendResponse = await fetch(`${API_ENDPOINT}/send_to_unity`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -551,7 +557,7 @@ export default function Editor(props: EditorProps) {
         })
       });
 
-      if (!response.ok) {
+      if (!sendResponse.ok) {
         throw new Error('Failed to send processed image to backend for Unity');
       }
 
