@@ -55,7 +55,7 @@ function Home() {
 
   useEffect(() => {
     // Connect to Socket.IO server
-    const wsUrl = `${window.location.origin}/ws`;
+    const wsUrl = `${window.location.origin}`;
     console.log('Connecting to WebSocket at:', wsUrl);
     
     const socket = io(wsUrl, {
@@ -69,13 +69,14 @@ function Home() {
     });
 
     socket.on('connect', () => {
-      console.log('WebSocket connected successfully');
+      console.log('WebSocket connected successfully', socket.id);
     });
 
     socket.on('disconnect', (reason) => {
       console.log('WebSocket disconnected:', reason);
       if (reason === 'io server disconnect') {
         // La déconnexion a été initiée par le serveur, on peut essayer de se reconnecter
+        console.log('Attempting to reconnect...');
         socket.connect();
       }
     });
@@ -86,6 +87,38 @@ function Home() {
 
     socket.on('error', (error) => {
       console.error('WebSocket error:', error);
+    });
+
+    socket.on('reconnect_attempt', (attemptNumber) => {
+      console.log('Reconnect attempt #', attemptNumber);
+    });
+
+    socket.on('reconnect', (attemptNumber) => {
+      console.log('Successfully reconnected after', attemptNumber, 'attempts.');
+    });
+
+    socket.on('reconnect_error', (error) => {
+      console.error('Reconnect error:', error);
+    });
+
+    socket.on('reconnect_failed', () => {
+      console.error('Reconnect failed.');
+    });
+
+    socket.io.on('open', () => {
+      console.log('Socket.IO connection underlying transport opened.');
+    });
+
+    socket.io.on('close', (reason) => {
+      console.log('Socket.IO connection underlying transport closed:', reason);
+    });
+
+    socket.io.on('upgrade', (transport) => {
+      console.log('Socket.IO transport upgraded to', transport.name);
+    });
+
+    socket.io.on('packet', (packet) => {
+      console.log('Received packet:', packet);
     });
 
     // Listener for unity_image_received event
