@@ -379,7 +379,8 @@ class Api:
             with open(output_path, "wb") as f:
                 f.write(image_data)
                 
-            return {"success": True, "filename": filename}
+            # Renvoyer l'image reçue au lieu d'un message de succès
+            return Response(content=image_data, media_type="image/png")
             
         except Exception as e:
             # Afficher la traceback détaillée pour le débogage
