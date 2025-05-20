@@ -531,6 +531,8 @@ export default function Editor(props: EditorProps) {
 
     try {
       const curRender = renders[renders.length - 1]
+      // Log pour vérifier la source de l'image rendue
+      console.log("Current render src:", curRender.currentSrc);
       const imageBase64 = curRender.currentSrc.split(',')[1]
       
       // Log pour vérifier la chaîne base64 avant l'envoi
