@@ -20,6 +20,7 @@ import {
   isRightClick,
   mouseXY,
   srcToFile,
+  convertToBase64,
 } from "@/lib/utils"
 import { Eraser, Eye, Redo, Undo, Expand, Download } from "lucide-react"
 import { useImage } from "@/hooks/useImage"
@@ -526,11 +527,20 @@ export default function Editor(props: EditorProps) {
 
   const download = useCallback(async () => {
     if (file === undefined) {
-      return
+      return;
     }
 
     try {
-      const curRender = renders[renders.length - 1]
+      if (renders.length === 0) {
+        toast({
+          variant: "destructive",
+          title: "Erreur!",
+          description: "Aucune image traitée disponible",
+        });
+        return;
+      }
+
+      const curRender = renders[renders.length - 1];
 
       // Obtenir le Blob à partir de l'image rendue (URL blob:)
       console.log("Attempting to convert blob URL to Blob:", curRender.currentSrc);
@@ -538,43 +548,51 @@ export default function Editor(props: EditorProps) {
       const blob = await response.blob();
       console.log("Blob created from render src, size:", blob.size);
 
-      // Convertir le Blob en base64
-      const imageBase64 = await convertToBase64(blob);
-      
-      // Log pour vérifier la chaîne base64 avant l'envoi
-      console.log("Base64 image data length before sending:", imageBase64.length);
-      console.log("Base64 image data start (first 100 chars):", imageBase64.substring(0, 100));
+      // Convertir le Blob en base64 en utilisant la fonction importée
+      try {
+        const imageBase64 = await convertToBase64(blob);
+        console.log("Base64 image data length:", imageBase64.length);
 
-      // Envoi de l'image traitée au backend pour Unity
-      console.log("Sending processed image to backend for Unity...");
-      const sendResponse = await fetch(`${API_ENDPOINT}/send_to_unity`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          image: imageBase64
-        })
-      });
+        // Envoi de l'image traitée au backend pour Unity
+        console.log("Sending processed image to backend for Unity...");
+        const sendResponse = await fetch(`${API_ENDPOINT}/api/v1/send_to_unity`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            image: imageBase64
+          })
+        });
 
-      if (!sendResponse.ok) {
-        throw new Error('Failed to send processed image to backend for Unity');
+        if (!sendResponse.ok) {
+          throw new Error(`Failed to send processed image to backend for Unity: ${sendResponse.status} ${sendResponse.statusText}`);
+        }
+
+        console.log("Processed image sent to backend successfully.");
+        toast({
+          description: "Image traitée envoyée au backend pour Unity",
+        });
+      } catch (error) {
+        console.error("Error converting or sending image:", error);
+        throw error;
       }
 
-      console.log("Processed image sent to backend successfully.");
-      toast({
-        description: "Image traitée envoyée au backend pour Unity",
-      })
-
+      // Télécharger l'image traitée localement si dans un contexte navigateur standard
+      if (enableAutoSaving) {
+        await downloadToOutput(file.name, curRender.src);
+      } else {
+        downloadImage(curRender.src, file.name);
+      }
     } catch (e: any) {
-      console.error("Error sending processed image to backend:", e);
+      console.error("Error in download process:", e);
       toast({
         variant: "destructive",
         title: "Erreur!",
         description: e.message ? e.message : e.toString(),
-      })
+      });
     }
-  }, [file, renders])
+  }, [file, renders, enableAutoSaving]);
 
   useHotKey("meta+s,ctrl+s", download)
 

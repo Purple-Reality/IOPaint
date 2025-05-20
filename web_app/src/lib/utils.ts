@@ -241,16 +241,22 @@ export const generateMask = (
   return maskCanvas
 }
 
-export const convertToBase64 = (fileOrBlob: File | Blob): Promise<string> => {
+/**
+ * Convertit un Blob en chaîne base64
+ * @param blob - Le Blob à convertir
+ * @returns Une promesse qui résout la chaîne base64
+ */
+export const convertToBase64 = (blob: Blob): Promise<string> => {
   return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = (event) => {
-      const base64String = event.target?.result as string
-      resolve(base64String)
-    }
-    reader.onerror = (error) => {
-      reject(error)
-    }
-    reader.readAsDataURL(fileOrBlob)
-  })
-}
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64String = reader.result as string;
+      // FileReader.result contient data:image/png;base64,BASE64_DATA
+      // On extrait seulement la partie BASE64_DATA
+      const base64Data = base64String.split(',')[1];
+      resolve(base64Data);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+};
