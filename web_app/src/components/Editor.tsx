@@ -528,53 +528,40 @@ export default function Editor(props: EditorProps) {
     if (file === undefined) {
       return
     }
-    if (enableAutoSaving && renders.length > 0) {
-      try {
-        await downloadToOutput(
-          renders[renders.length - 1],
-          file.name,
-          file.type
-        )
-        toast({
-          description: "Save image success",
+
+    try {
+      const curRender = renders[renders.length - 1]
+      const imageBase64 = curRender.currentSrc.split(',')[1]
+      
+      // Envoi de l'image à Unity
+      const response = await fetch(`${API_ENDPOINT}/api/v1/unity_image`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          image: imageBase64
         })
-      } catch (e: any) {
-        toast({
-          variant: "destructive",
-          title: "Uh oh! Something went wrong.",
-          description: e.message ? e.message : e.toString(),
-        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to send image to Unity');
       }
-      return
-    }
 
-    // TODO: download to output directory
-    const name = file.name.replace(/(\.[\w\d_-]+)$/i, "_cleanup$1")
-    const curRender = renders[renders.length - 1]
-    downloadImage(curRender.currentSrc, name)
-    if (settings.enableDownloadMask) {
-      let maskFileName = file.name.replace(/(\.[\w\d_-]+)$/i, "_mask$1")
-      maskFileName = maskFileName.replace(/\.[^/.]+$/, ".jpg")
+      toast({
+        description: "Image envoyée à Unity avec succès",
+      })
 
-      const maskCanvas = generateMask(imageWidth, imageHeight, lineGroups)
-      // Create a link
-      const aDownloadLink = document.createElement("a")
-      // Add the name of the file to the link
-      aDownloadLink.download = maskFileName
-      // Attach the data to the link
-      aDownloadLink.href = maskCanvas.toDataURL("image/jpeg")
-      // Get the code to click the download link
-      aDownloadLink.click()
+      // Fermeture de la fenêtre
+      window.close();
+    } catch (e: any) {
+      toast({
+        variant: "destructive",
+        title: "Erreur!",
+        description: e.message ? e.message : e.toString(),
+      })
     }
-  }, [
-    file,
-    enableAutoSaving,
-    renders,
-    settings,
-    imageHeight,
-    imageWidth,
-    lineGroups,
-  ])
+  }, [file, renders])
 
   useHotKey("meta+s,ctrl+s", download)
 

@@ -509,3 +509,8 @@ class AdjustMaskRequest(BaseModel):
     )
     operate: AdjustMaskOperate = Field(..., description="expand/shrink/reverse")
     kernel_size: int = Field(5, description="Kernel size for expanding mask")
+
+
+class UnityImageRequest(BaseModel):
+    """Schéma pour la requête d'image depuis Unity"""
+    image: str  # Image en base64

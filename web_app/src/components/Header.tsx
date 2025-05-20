@@ -93,7 +93,8 @@ const Header = () => {
           <></>
         )}
 
-        <ImageUploadButton
+        {/* Le bouton d'upload est masqué pour l'intégration Unity */}
+        {/* <ImageUploadButton
           disabled={isInpainting}
           tooltip="Upload image"
           onFileUpload={(file) => {
@@ -101,7 +102,7 @@ const Header = () => {
           }}
         >
           <Image />
-        </ImageUploadButton>
+        </ImageUploadButton> */}
 
         <div
           className={cn([
@@ -193,9 +194,10 @@ const Header = () => {
       {model.need_prompt ? <PromptInput /> : <></>}
 
       <div className="flex gap-1">
-        <Coffee />
+        {/* Les icônes sont masquées pour l'intégration Unity */}
+        {/* <Coffee />
         <Shortcuts />
-        {serverConfig.disableModelSwitch ? <></> : <SettingsDialog />}
+        {serverConfig.disableModelSwitch ? <></> : <SettingsDialog />} */}
       </div>
     </header>
   )

@@ -10,6 +10,8 @@ import cv2
 import numpy as np
 import socketio
 import torch
+import base64
+import datetime
 
 try:
     torch._C._jit_override_can_fuse_on_cpu(False)
@@ -61,6 +63,7 @@ from iopaint.schema import (
     ModelInfo,
     InteractiveSegModel,
     RealESRGANModel,
+    UnityImageRequest,
 )
 
 CURRENT_DIR = Path(__file__).parent.absolute().resolve()
@@ -171,6 +174,7 @@ class Api:
         self.add_api_route("/api/v1/samplers", self.api_samplers, methods=["GET"])
         self.add_api_route("/api/v1/adjust_mask", self.api_adjust_mask, methods=["POST"])
         self.add_api_route("/api/v1/save_image", self.api_save_image, methods=["POST"])
+        self.add_api_route("/api/v1/unity_image", self.api_unity_image, methods=["POST"])
         self.app.mount("/", StaticFiles(directory=WEB_APP_DIR, html=True), name="assets")
         # fmt: on
 
@@ -354,6 +358,31 @@ class Api:
         mask, _, _, _ = decode_base64_to_image(req.mask, gray=True)
         mask = adjust_mask(mask, req.kernel_size, req.operate)
         return Response(content=numpy_to_bytes(mask, "png"), media_type="image/png")
+
+    def api_unity_image(self, req: UnityImageRequest):
+        try:
+            # Décodage de l'image base64
+            image_data = base64.b64decode(req.image)
+            
+            # Génération d'un nom de fichier unique avec timestamp
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"unity_image_{timestamp}.png"
+            
+            # Sauvegarde de l'image dans le dossier de sortie
+            if not self.config.output_dir:
+                raise HTTPException(status_code=400, detail="Output directory not configured")
+            
+            if not os.path.exists(self.config.output_dir):
+                os.makedirs(self.config.output_dir)
+                
+            output_path = os.path.join(self.config.output_dir, filename)
+            with open(output_path, "wb") as f:
+                f.write(image_data)
+                
+            return {"success": True, "filename": filename}
+            
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
 
     def launch(self):
         self.app.include_router(self.router)
