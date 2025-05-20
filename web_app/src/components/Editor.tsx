@@ -533,8 +533,9 @@ export default function Editor(props: EditorProps) {
       const curRender = renders[renders.length - 1]
       const imageBase64 = curRender.currentSrc.split(',')[1]
       
-      // Envoi de l'image à Unity
-      const response = await fetch(`${API_ENDPOINT}/api/v1/unity_image`, {
+      // Envoi de l'image traitée au backend pour Unity
+      console.log("Sending processed image to backend for Unity...");
+      const response = await fetch(`${API_ENDPOINT}/send_to_unity`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -545,16 +546,16 @@ export default function Editor(props: EditorProps) {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to send image to Unity');
+        throw new Error('Failed to send processed image to backend for Unity');
       }
 
+      console.log("Processed image sent to backend successfully.");
       toast({
-        description: "Image envoyée à Unity avec succès",
+        description: "Image traitée envoyée au backend pour Unity",
       })
 
-      // Fermeture de la fenêtre
-      window.close();
     } catch (e: any) {
+      console.error("Error sending processed image to backend:", e);
       toast({
         variant: "destructive",
         title: "Erreur!",
