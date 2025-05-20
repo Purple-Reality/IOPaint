@@ -382,6 +382,8 @@ class Api:
             return {"success": True, "filename": filename}
             
         except Exception as e:
+            # Afficher la traceback détaillée pour le débogage
+            traceback.print_exc()
             raise HTTPException(status_code=500, detail=str(e))
 
     def launch(self):
