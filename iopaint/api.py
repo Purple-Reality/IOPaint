@@ -378,10 +378,15 @@ class Api:
             output_path = os.path.join(self.config.output_dir, filename)
             with open(output_path, "wb") as f:
                 f.write(image_data)
-                
-            # Renvoyer l'image reçue au lieu d'un message de succès
-            return Response(content=image_data, media_type="image/png")
-            
+
+            # Encoder l'image reçue à nouveau en base64 pour l'envoyer via WebSocket
+            image_base64_encoded = base64.b64encode(image_data).decode('utf-8')
+
+            # Émettre un événement WebSocket avec l'image base64
+            asyncio.run(global_sio.emit("unity_image_received", {"image": image_base64_encoded}))
+
+            return {"success": True, "message": "Image received and event emitted"}
+
         except Exception as e:
             # Afficher la traceback détaillée pour le débogage
             traceback.print_exc()
