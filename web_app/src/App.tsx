@@ -55,7 +55,10 @@ function Home() {
 
   useEffect(() => {
     // Connect to Socket.IO server
-    const socket = io(`${window.location.origin}/ws`);
+    const socket = io(`${window.location.protocol}//${window.location.host}/ws`, {
+      transports: ['websocket', 'polling'],
+      path: '/socket.io/'
+    });
 
     // Listener for unity_image_received event
     socket.on("unity_image_received", async (data) => {
