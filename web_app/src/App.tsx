@@ -55,17 +55,23 @@ function Home() {
 
   useEffect(() => {
     // Connect to Socket.IO server
-    const socket = io(`${window.location.protocol}//${window.location.host}/ws`, {
+    const wsUrl = `${window.location.origin}/ws`;
+    console.log('Connecting to WebSocket at:', wsUrl);
+    
+    const socket = io(wsUrl, {
       transports: ['websocket', 'polling'],
-      path: '/socket.io/'
+      path: '/socket.io/',
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000
     });
 
     socket.on('connect', () => {
       console.log('WebSocket connected successfully');
     });
 
-    socket.on('disconnect', () => {
-      console.log('WebSocket disconnected');
+    socket.on('disconnect', (reason) => {
+      console.log('WebSocket disconnected:', reason);
     });
 
     socket.on('connect_error', (error) => {
