@@ -555,7 +555,7 @@ export default function Editor(props: EditorProps) {
 
         // Envoi de l'image traitée au backend pour Unity
         console.log("Sending processed image to backend for Unity...");
-        const sendResponse = await fetch(`${API_ENDPOINT}/api/v1/send_to_unity`, {
+        const sendResponse = await fetch(`${API_ENDPOINT}/send_to_unity`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
