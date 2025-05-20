@@ -175,6 +175,7 @@ class Api:
         self.add_api_route("/api/v1/adjust_mask", self.api_adjust_mask, methods=["POST"])
         self.add_api_route("/api/v1/save_image", self.api_save_image, methods=["POST"])
         self.add_api_route("/api/v1/unity_image", self.api_unity_image, methods=["POST"])
+        self.add_api_route("/api/v1/send_to_unity", self.api_send_to_unity, methods=["POST"])
         self.app.mount("/", StaticFiles(directory=WEB_APP_DIR, html=True), name="assets")
         # fmt: on
 
@@ -404,6 +405,34 @@ class Api:
             logger.error("Full traceback:")
             traceback.print_exc()
             raise HTTPException(status_code=500, detail=str(e))
+
+    # New endpoint to receive processed image from frontend and save it for Unity
+    def api_send_to_unity(self, req: UnityImageRequest):
+        logger.info("Received processed image from frontend for Unity")
+        if not self.config.output_dir:
+            logger.error("Output directory not configured.")
+            raise HTTPException(
+                status_code=400, detail="Output directory not configured"
+            )
+
+        output_path = self.config.output_dir / "unity_processed_image.png"
+
+        try:
+            # Decode base64 image
+            img_data = base64.b64decode(req.image)
+            logger.info(f"Decoded base64 image, size: {len(img_data)} bytes")
+
+            # Save the image
+            with open(output_path, "wb") as f:
+                f.write(img_data)
+            logger.info(f"Processed image saved to: {output_path}")
+
+            return Response(status_code=200)
+
+        except Exception as e:
+            logger.error(f"Error processing and saving image for Unity: {e}")
+            traceback.print_exc()
+            raise HTTPException(status_code=500, detail="Error processing and saving image")
 
     def launch(self):
         self.app.include_router(self.router)
