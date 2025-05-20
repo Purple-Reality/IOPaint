@@ -63,7 +63,9 @@ function Home() {
       path: '/socket.io/',
       reconnection: true,
       reconnectionAttempts: 5,
-      reconnectionDelay: 1000
+      reconnectionDelay: 1000,
+      forceNew: true,
+      timeout: 10000
     });
 
     socket.on('connect', () => {
@@ -72,10 +74,18 @@ function Home() {
 
     socket.on('disconnect', (reason) => {
       console.log('WebSocket disconnected:', reason);
+      if (reason === 'io server disconnect') {
+        // La déconnexion a été initiée par le serveur, on peut essayer de se reconnecter
+        socket.connect();
+      }
     });
 
     socket.on('connect_error', (error) => {
       console.error('WebSocket connection error:', error);
+    });
+
+    socket.on('error', (error) => {
+      console.error('WebSocket error:', error);
     });
 
     // Listener for unity_image_received event
