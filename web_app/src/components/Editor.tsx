@@ -7,7 +7,7 @@ import {
   TransformWrapper,
 } from "react-zoom-pan-pinch"
 import { useKeyPressEvent } from "react-use"
-import { downloadToOutput, runPlugin } from "@/lib/api"
+import { downloadToOutput, runPlugin, API_ENDPOINT } from "@/lib/api"
 import { IconButton } from "@/components/ui/button"
 import {
   askWritePermission,
