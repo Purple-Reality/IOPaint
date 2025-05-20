@@ -138,7 +138,7 @@ type EditorState = {
   redoLineGroups: LineGroup[]
 }
 
-export type AppState = {
+type AppState = {
   file: File | null
   paintByExampleFile: File | null
   customMask: File | null

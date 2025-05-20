@@ -1,9 +1,9 @@
+import React from "react"
 import { useCallback, useEffect, useRef } from "react"
-import { useToast } from "@/components/ui/use-toast"
 
 import useInputImage from "@/hooks/useInputImage"
 import { keepGUIAlive } from "@/lib/utils"
-import { getServerConfig } from "@/lib/api"
+import { getServerConfig, API_ENDPOINT } from "@/lib/api"
 import Header from "@/components/Header"
 import Workspace from "@/components/Workspace"
 import FileSelect from "@/components/FileSelect"
@@ -30,21 +30,6 @@ function Home() {
 
   const windowSize = useWindowSize()
 
-  const toast = useToast()
-
-  useEffect(() => {
-    // Vérifie si une image Unity a été reçue (via un paramètre dans l'URL)
-    const params = new URLSearchParams(window.location.search);
-    const unityImageFilename = params.get("unity_image");
-    if (unityImageFilename) {
-      toast({
-        title: "Image Unity reçue",
-        description: `Nom du fichier : ${unityImageFilename}`,
-      });
-      // Ici, tu pourrais ajouter le code pour charger automatiquement l'image si nécessaire
-    }
-  }, [toast]); // L'array vide assure que cet effet ne s'exécute qu'une seule fois après le montage initial
-
   useEffect(() => {
     if (userInputImage) {
       setFile(userInputImage)
@@ -66,6 +51,28 @@ function Home() {
     }
     fetchServerConfig()
   }, [])
+
+  useEffect(() => {
+    // Tentative de récupération automatique de l'image Unity au chargement
+    async function fetchUnityImage() {
+      try {
+        const res = await fetch(`${API_ENDPOINT}/unity_image`, {
+          method: "GET",
+        })
+        if (res.ok) {
+          const blob = await res.blob()
+          // On crée un File pour compatibilité avec setFile
+          const file = new File([blob], "unity-image.png", { type: blob.type || "image/png" })
+          setFile(file)
+        }
+      } catch (e) {
+        // Pas d'image Unity, on ne fait rien
+      }
+    }
+    if (!file) {
+      fetchUnityImage()
+    }
+  }, [file, setFile])
 
   const dragCounter = useRef(0)
 

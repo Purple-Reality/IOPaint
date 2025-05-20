@@ -1,25 +1,22 @@
-import { Link } from "react-router-dom"
-import { HelpCircle } from "lucide-react"
+
 import { PlayIcon } from "@radix-ui/react-icons"
-import React, { useState } from "react"
+import { useState } from "react"
 import { IconButton, ImageUploadButton } from "@/components/ui/button"
+import Shortcuts from "@/components/Shortcuts"
 import { useImage } from "@/hooks/useImage"
 
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover"
 import PromptInput from "./PromptInput"
-import { RotateCw, Upload } from "lucide-react"
+import { RotateCw, Image, Upload } from "lucide-react"
 import FileManager, { MASK_TAB } from "./FileManager"
 import { getMediaBlob, getMediaFile } from "@/lib/api"
-import { useStore, AppState } from "@/lib/states"
-import { useToast } from "./ui/use-toast"
-import {
-  Dialog,
-  DialogContent,
-  DialogTrigger,
-} from "./ui/dialog"
+import { useStore } from "@/lib/states"
+import SettingsDialog from "./Settings"
 import { cn, fileToImage } from "@/lib/utils"
+import Coffee from "./Coffee"
+import { useToast } from "./ui/use-toast"
 
-export const Header = () => {
+const Header = () => {
   const [
     file,
     customMask,
@@ -36,7 +33,7 @@ export const Header = () => {
     imageHeight,
     imageWidth,
     handleFileManagerMaskSelect,
-  ] = useStore((state: AppState) => [
+  ] = useStore((state) => [
     state.file,
     state.customMask,
     state.isInpainting,
@@ -88,20 +85,25 @@ export const Header = () => {
     }
   }
 
-  const isSettingsVisible = !serverConfig.disableModelSwitch;
-
   return (
     <header className="h-[60px] px-6 py-4 absolute top-[0] flex justify-between items-center w-full z-20 border-b backdrop-filter backdrop-blur-md bg-background/70">
       <div className="flex items-center gap-1">
-        <Link to="/">
-          <h1 className="text-lg font-bold">IOPaint</h1>
-        </Link>
-
         {serverConfig.enableFileManager ? (
           <FileManager photoWidth={512} onPhotoClick={handleOnPhotoClick} />
         ) : (
           <></>
         )}
+
+        {/* Le bouton d'upload est masqué pour l'intégration Unity */}
+        {/* <ImageUploadButton
+          disabled={isInpainting}
+          tooltip="Upload image"
+          onFileUpload={(file) => {
+            setFile(file)
+          }}
+        >
+          <Image />
+        </ImageUploadButton> */}
 
         <div
           className={cn([
@@ -109,6 +111,40 @@ export const Header = () => {
             file && enableUploadMask ? "visible" : "hidden",
           ])}
         >
+          <ImageUploadButton
+            disabled={isInpainting}
+            tooltip="Upload custom mask"
+            onFileUpload={async (file) => {
+              let newCustomMask: HTMLImageElement | null = null
+              try {
+                newCustomMask = await fileToImage(file)
+              } catch (e: any) {
+                toast({
+                  variant: "destructive",
+                  description: e.message ? e.message : e.toString(),
+                })
+                return
+              }
+              if (
+                newCustomMask.naturalHeight !== imageHeight ||
+                newCustomMask.naturalWidth !== imageWidth
+              ) {
+                toast({
+                  variant: "destructive",
+                  description: `The size of the mask must same as image: ${imageWidth}x${imageHeight}`,
+                })
+                return
+              }
+
+              setCustomFile(file)
+              if (!runMannually) {
+                runInpainting()
+              }
+            }}
+          >
+            <Upload />
+          </ImageUploadButton>
+
           {customMask ? (
             <Popover open={openMaskPopover}>
               <PopoverTrigger
@@ -149,7 +185,7 @@ export const Header = () => {
             onMouseEnter={onRerunMouseEnter}
             onMouseLeave={onRerunMouseLeave}
           >
-            <RotateCw size={20} />
+            <RotateCw />
           </IconButton>
         ) : (
           <></>
@@ -159,9 +195,13 @@ export const Header = () => {
       {model.need_prompt ? <PromptInput /> : <></>}
 
       <div className="flex gap-1">
-        {/* SettingsDialog masqué pour intégration Unity */}
-        {/* {isSettingsVisible && <SettingsDialog />} */}
+        {/* Les icônes sont masquées pour l'intégration Unity */}
+        {/* <Coffee />
+        <Shortcuts />
+        {serverConfig.disableModelSwitch ? <></> : <SettingsDialog />} */}
       </div>
     </header>
   )
 }
+
+export default Header
