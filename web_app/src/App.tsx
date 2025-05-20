@@ -20,7 +20,7 @@ const SUPPORTED_FILE_TYPE = [
   "image/tiff",
 ]
 function Home() {
-  const [file, updateAppState, setServerConfig, setFile] = useStore((state) => [
+  const [file, updateAppState, setServerConfig, setFile] = useStore((state: any) => [
     state.file,
     state.updateAppState,
     state.setServerConfig,
@@ -55,7 +55,7 @@ function Home() {
 
   useEffect(() => {
     // Connect to Socket.IO server
-    const socket = io(API_ENDPOINT);
+    const socket = io(`${window.location.origin}/ws`);
 
     // Listener for unity_image_received event
     socket.on("unity_image_received", async (data) => {
