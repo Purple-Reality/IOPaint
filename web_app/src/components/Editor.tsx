@@ -533,6 +533,10 @@ export default function Editor(props: EditorProps) {
       const curRender = renders[renders.length - 1]
       const imageBase64 = curRender.currentSrc.split(',')[1]
       
+      // Log pour vérifier la chaîne base64 avant l'envoi
+      console.log("Base64 image data length before sending:", imageBase64.length);
+      console.log("Base64 image data start (first 100 chars):", imageBase64.substring(0, 100));
+
       // Envoi de l'image traitée au backend pour Unity
       console.log("Sending processed image to backend for Unity...");
       const response = await fetch(`${API_ENDPOINT}/send_to_unity`, {
