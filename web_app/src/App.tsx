@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from "react"
+import { useToast } from "@/components/ui/use-toast"
 
 import useInputImage from "@/hooks/useInputImage"
 import { keepGUIAlive } from "@/lib/utils"
@@ -28,6 +29,21 @@ function Home() {
   const userInputImage = useInputImage()
 
   const windowSize = useWindowSize()
+
+  const toast = useToast()
+
+  useEffect(() => {
+    // Vérifie si une image Unity a été reçue (via un paramètre dans l'URL)
+    const params = new URLSearchParams(window.location.search);
+    const unityImageFilename = params.get("unity_image");
+    if (unityImageFilename) {
+      toast({
+        title: "Image Unity reçue",
+        description: `Nom du fichier : ${unityImageFilename}`,
+      });
+      // Ici, tu pourrais ajouter le code pour charger automatiquement l'image si nécessaire
+    }
+  }, [toast]); // L'array vide assure que cet effet ne s'exécute qu'une seule fois après le montage initial
 
   useEffect(() => {
     if (userInputImage) {

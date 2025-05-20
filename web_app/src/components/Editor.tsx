@@ -7,15 +7,13 @@ import {
   TransformWrapper,
 } from "react-zoom-pan-pinch"
 import { useKeyPressEvent } from "react-use"
-import { downloadToOutput, runPlugin, API_ENDPOINT } from "@/lib/api"
+import { runPlugin, API_ENDPOINT } from "@/lib/api"
 import { IconButton } from "@/components/ui/button"
 import {
   askWritePermission,
   cn,
   copyCanvasImage,
-  downloadImage,
   drawLines,
-  generateMask,
   isMidClick,
   isRightClick,
   mouseXY,
@@ -25,7 +23,7 @@ import { Eraser, Eye, Redo, Undo, Expand, Download } from "lucide-react"
 import { useImage } from "@/hooks/useImage"
 import { Slider } from "./ui/slider"
 import { PluginName } from "@/lib/types"
-import { useStore } from "@/lib/states"
+import { useStore } from "./lib/states"
 import Cropper from "./Cropper"
 import { InteractiveSegPoints } from "./InteractiveSeg"
 import useHotKey from "@/hooks/useHotkey"
@@ -54,7 +52,6 @@ export default function Editor(props: EditorProps) {
     imageWidth,
     imageHeight,
     settings,
-    enableAutoSaving,
     setImageSize,
     setBaseBrushSize,
     interactiveSegState,
@@ -79,7 +76,6 @@ export default function Editor(props: EditorProps) {
     state.imageWidth,
     state.imageHeight,
     state.settings,
-    state.serverConfig.enableAutoSaving,
     state.setImageSize,
     state.setBaseBrushSize,
     state.interactiveSegState,
@@ -103,7 +99,6 @@ export default function Editor(props: EditorProps) {
   const renders = useStore((state) => state.editorState.renders)
   const extraMasks = useStore((state) => state.editorState.extraMasks)
   const temporaryMasks = useStore((state) => state.editorState.temporaryMasks)
-  const lineGroups = useStore((state) => state.editorState.lineGroups)
   const curLineGroup = useStore((state) => state.editorState.curLineGroup)
 
   // Local State
