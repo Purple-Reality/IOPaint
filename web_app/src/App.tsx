@@ -60,6 +60,18 @@ function Home() {
       path: '/socket.io/'
     });
 
+    socket.on('connect', () => {
+      console.log('WebSocket connected successfully');
+    });
+
+    socket.on('disconnect', () => {
+      console.log('WebSocket disconnected');
+    });
+
+    socket.on('connect_error', (error) => {
+      console.error('WebSocket connection error:', error);
+    });
+
     // Listener for unity_image_received event
     socket.on("unity_image_received", async (data) => {
       console.log("Unity image received via WebSocket:", data);
@@ -87,6 +99,11 @@ function Home() {
           console.log("Setting file in state...");
           setFile(file);
           console.log("File set successfully");
+
+          // Vérifier si le fichier a été correctement défini
+          setTimeout(() => {
+            console.log("Current file state:", file);
+          }, 1000);
 
         } catch (error) {
           console.error("Error processing received image via WebSocket:", error);
