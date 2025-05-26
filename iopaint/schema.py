@@ -514,3 +514,8 @@ class AdjustMaskRequest(BaseModel):
 class UnityImageRequest(BaseModel):
     """Schéma pour la requête d'image depuis Unity"""
     image: str  # Image en base64
+
+
+class UnityImageUrlRequest(BaseModel):
+    """Schéma pour la requête d'URL d'image depuis Unity"""
+    image_url: str  # URL de l'image à télécharger

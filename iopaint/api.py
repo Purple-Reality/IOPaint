@@ -12,6 +12,7 @@ import socketio
 import torch
 import base64
 import datetime
+import requests
 
 try:
     torch._C._jit_override_can_fuse_on_cpu(False)
@@ -64,6 +65,7 @@ from iopaint.schema import (
     InteractiveSegModel,
     RealESRGANModel,
     UnityImageRequest,
+    UnityImageUrlRequest,
 )
 
 CURRENT_DIR = Path(__file__).parent.absolute().resolve()
@@ -126,7 +128,7 @@ def api_middleware(app: FastAPI):
         return handle_exception(request, e)
 
     cors_options = {
-        "allow_methods": ["*"],
+        "allow_methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         "allow_headers": ["*"],
         "allow_origins": ["*"],
         "allow_credentials": True,
@@ -176,7 +178,8 @@ class Api:
         self.add_api_route("/api/v1/save_image", self.api_save_image, methods=["POST"])
         self.add_api_route("/api/v1/unity_image", self.api_unity_image, methods=["POST"])
         self.add_api_route("/api/v1/send_to_unity", self.api_send_to_unity, methods=["POST"])
-        self.app.mount("/", StaticFiles(directory=WEB_APP_DIR, html=True), name="assets")
+        self.add_api_route("/api/v1/unity_image_url", self.api_unity_image_url, methods=["POST"])
+        #self.app.mount("/", StaticFiles(directory=WEB_APP_DIR, html=True), name="assets")
         # fmt: on
 
         global global_sio
@@ -402,6 +405,56 @@ class Api:
         except Exception as e:
             # Afficher la traceback détaillée pour le débogage
             logger.error(f"Error processing Unity image: {str(e)}")
+            logger.error("Full traceback:")
+            traceback.print_exc()
+            raise HTTPException(status_code=500, detail=str(e))
+
+    def api_unity_image_url(self, req: UnityImageUrlRequest):
+        try:
+            logger.info(f"Received Unity image URL request: {req.image_url}")
+            
+            # Télécharger l'image depuis l'URL
+            response = requests.get(req.image_url)
+            if response.status_code != 200:
+                raise HTTPException(status_code=400, detail=f"Failed to download image from URL: {response.status_code}")
+            
+            image_data = response.content
+            logger.info(f"Downloaded image, size: {len(image_data)} bytes")
+            
+            # Génération d'un nom de fichier unique avec timestamp
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"unity_image_{timestamp}.png"
+            logger.info(f"Generated filename: {filename}")
+            
+            # Sauvegarde de l'image dans le dossier de sortie
+            if not self.config.output_dir:
+                logger.error("Output directory not configured")
+                raise HTTPException(status_code=400, detail="Output directory not configured")
+            
+            if not os.path.exists(self.config.output_dir):
+                logger.info(f"Creating output directory: {self.config.output_dir}")
+                os.makedirs(self.config.output_dir)
+                
+            output_path = os.path.join(self.config.output_dir, filename)
+            logger.info(f"Saving image to: {output_path}")
+            with open(output_path, "wb") as f:
+                f.write(image_data)
+            logger.info("Image saved successfully")
+
+            # Encoder l'image téléchargée en base64 pour l'envoyer via WebSocket
+            logger.info("Encoding image for WebSocket transmission")
+            image_base64_encoded = base64.b64encode(image_data).decode('utf-8')
+            logger.info(f"Image encoded, length: {len(image_base64_encoded)}")
+
+            # Émettre un événement WebSocket avec l'image base64
+            logger.info("Emitting WebSocket event")
+            asyncio.run(global_sio.emit("unity_image_received", {"image": image_base64_encoded}))
+            logger.info("WebSocket event emitted successfully")
+
+            return {"success": True, "message": "Image downloaded and event emitted"}
+
+        except Exception as e:
+            logger.error(f"Error processing Unity image URL: {str(e)}")
             logger.error("Full traceback:")
             traceback.print_exc()
             raise HTTPException(status_code=500, detail=str(e))
