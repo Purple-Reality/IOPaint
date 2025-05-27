@@ -179,13 +179,13 @@ class Api:
         self.add_api_route("/api/v1/unity_image", self.api_unity_image, methods=["POST"])
         self.add_api_route("/api/v1/send_to_unity", self.api_send_to_unity, methods=["POST"])
         self.add_api_route("/api/v1/unity_image_url", self.api_unity_image_url, methods=["POST"])
-        #self.app.mount("/", StaticFiles(directory=WEB_APP_DIR, html=True), name="assets")
         # fmt: on
 
         global global_sio
         self.sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins="*")
         self.combined_asgi_app = socketio.ASGIApp(self.sio, self.app)
         self.app.mount("/ws", self.combined_asgi_app)
+        self.app.mount("/", StaticFiles(directory=WEB_APP_DIR, html=True), name="assets")
         global_sio = self.sio
 
     def add_api_route(self, path: str, endpoint, **kwargs):
@@ -441,17 +441,13 @@ class Api:
                 f.write(image_data)
             logger.info("Image saved successfully")
 
-            # Encoder l'image téléchargée en base64 pour l'envoyer via WebSocket
-            logger.info("Encoding image for WebSocket transmission")
-            image_base64_encoded = base64.b64encode(image_data).decode('utf-8')
-            logger.info(f"Image encoded, length: {len(image_base64_encoded)}")
+            # Générer l'URL de redirection vers l'interface web avec ?image=...
+            # On suppose que l'interface est servie à la racine ("/")
+            # et que l'API est accessible via le même domaine
+            redirect_url = f"/?image={filename}"
+            logger.info(f"Returning redirect_url: {redirect_url}")
 
-            # Émettre un événement WebSocket avec l'image base64
-            logger.info("Emitting WebSocket event")
-            asyncio.run(global_sio.emit("unity_image_received", {"image": image_base64_encoded}))
-            logger.info("WebSocket event emitted successfully")
-
-            return {"success": True, "message": "Image downloaded and event emitted"}
+            return {"redirect_url": redirect_url}
 
         except Exception as e:
             logger.error(f"Error processing Unity image URL: {str(e)}")
