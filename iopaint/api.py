@@ -142,11 +142,7 @@ global_sio: AsyncServer = None
 
 def diffuser_callback(pipe, step: int, timestep: int, callback_kwargs: Dict = {}):
     # self: DiffusionPipeline, step: int, timestep: int, callback_kwargs: Dict
-    # logger.info(f"diffusion callback: step={step}, timestep={timestep}")
-
-    # We use asyncio loos for task processing. Perhaps in the future, we can add a processing queue similar to InvokeAI,
-    # but for now let's just start a separate event loop. It shouldn't make a difference for single person use
-    asyncio.run(global_sio.emit("diffusion_progress", {"step": step}))
+    logger.info(f"diffusion callback: step={step}, timestep={timestep}")
     return {}
 
 
@@ -181,12 +177,7 @@ class Api:
         self.add_api_route("/api/v1/unity_image_url", self.api_unity_image_url, methods=["POST"])
         # fmt: on
 
-        global global_sio
-        self.sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins="*")
-        self.combined_asgi_app = socketio.ASGIApp(self.sio, self.app)
-        self.app.mount("/ws", self.combined_asgi_app)
         self.app.mount("/", StaticFiles(directory=WEB_APP_DIR, html=True), name="assets")
-        global_sio = self.sio
 
     def add_api_route(self, path: str, endpoint, **kwargs):
         return self.app.add_api_route(path, endpoint, **kwargs)
@@ -302,8 +293,6 @@ class Api:
             quality=self.config.quality,
             infos=infos,
         )
-
-        asyncio.run(self.sio.emit("diffusion_finish"))
 
         return Response(
             content=res_img_bytes,
@@ -441,9 +430,16 @@ class Api:
                 f.write(image_data)
             logger.info("Image saved successfully")
 
+            # Vérifier que l'image existe bien
+            if not os.path.exists(output_path):
+                logger.error(f"Image file not found after saving: {output_path}")
+                raise HTTPException(status_code=500, detail="Failed to save image")
+
+            # Vérifier la taille du fichier
+            file_size = os.path.getsize(output_path)
+            logger.info(f"Saved file size: {file_size} bytes")
+
             # Générer l'URL de redirection vers l'interface web avec ?image=...
-            # On suppose que l'interface est servie à la racine ("/")
-            # et que l'API est accessible via le même domaine
             redirect_url = f"/?image={filename}"
             logger.info(f"Returning redirect_url: {redirect_url}")
 
@@ -486,7 +482,7 @@ class Api:
     def launch(self):
         self.app.include_router(self.router)
         uvicorn.run(
-            self.combined_asgi_app,
+            self.app,
             host=self.config.host,
             port=self.config.port,
             timeout_keep_alive=999999999,
