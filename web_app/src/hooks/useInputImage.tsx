@@ -20,7 +20,7 @@ export default function useInputImage() {
       console.log("📸 Image parameter found, attempting to load image...");
       
       // Construire l'URL complète
-      const imageUrl = `/output_dir/${imageParam}`;
+      const imageUrl = `/output/${imageParam}`;
       console.log("🔗 Constructed image URL:", imageUrl);
       
       // Charger l'image depuis le dossier de sortie
