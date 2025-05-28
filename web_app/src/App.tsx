@@ -28,6 +28,14 @@ function Home() {
 
   const userInputImage = useInputImage()
 
+  useEffect(() => {
+  console.log("🏠 App.tsx - userInputImage changed:", userInputImage ? `${userInputImage.name} (${userInputImage.size} bytes)` : "null");
+  }, [userInputImage])
+
+  useEffect(() => {
+    console.log("🏠 App.tsx - file state changed:", file ? `${file.name} (${file.size} bytes)` : "null");
+  }, [file])
+
   const windowSize = useWindowSize()
 
   useEffect(() => {
