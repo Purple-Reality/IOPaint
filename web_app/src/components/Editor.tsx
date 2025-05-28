@@ -580,7 +580,7 @@ export default function Editor(props: EditorProps) {
 
       // Télécharger l'image traitée localement si dans un contexte navigateur standard
       if (enableAutoSaving) {
-        await downloadToOutput(file.name, curRender.src);
+        await downloadToOutput(file.name, curRender.src, 'image/png');
       } else {
         downloadImage(curRender.src, file.name);
       }

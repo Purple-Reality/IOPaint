@@ -1,4 +1,3 @@
-
 import { PlayIcon } from "@radix-ui/react-icons"
 import { useState } from "react"
 import { IconButton, ImageUploadButton } from "@/components/ui/button"
@@ -7,7 +6,7 @@ import { useImage } from "@/hooks/useImage"
 
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover"
 import PromptInput from "./PromptInput"
-import { RotateCw, Image, Upload } from "lucide-react"
+import { RotateCw, Upload } from "lucide-react"
 import FileManager, { MASK_TAB } from "./FileManager"
 import { getMediaBlob, getMediaFile } from "@/lib/api"
 import { useStore } from "@/lib/states"

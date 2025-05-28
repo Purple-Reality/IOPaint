@@ -1,10 +1,9 @@
-import React from "react"
 import { useCallback, useEffect, useRef } from "react"
 import { io } from "socket.io-client";
 
 import useInputImage from "@/hooks/useInputImage"
 import { keepGUIAlive } from "@/lib/utils"
-import { getServerConfig, API_ENDPOINT } from "@/lib/api"
+import { getServerConfig } from "@/lib/api"
 import Header from "@/components/Header"
 import Workspace from "@/components/Workspace"
 import FileSelect from "@/components/FileSelect"
@@ -113,7 +112,7 @@ function Home() {
       console.log('Socket.IO connection underlying transport closed:', reason);
     });
 
-    socket.io.on('upgrade', (transport) => {
+    socket.io.on('upgrade' as any, (transport: any) => {
       console.log('Socket.IO transport upgraded to', transport.name);
     });
 
