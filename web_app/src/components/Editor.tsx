@@ -15,7 +15,6 @@ import {
   copyCanvasImage,
   downloadImage,
   drawLines,
-  generateMask,
   isMidClick,
   isRightClick,
   mouseXY,
@@ -104,7 +103,6 @@ export default function Editor(props: EditorProps) {
   const renders = useStore((state) => state.editorState.renders)
   const extraMasks = useStore((state) => state.editorState.extraMasks)
   const temporaryMasks = useStore((state) => state.editorState.temporaryMasks)
-  const lineGroups = useStore((state) => state.editorState.lineGroups)
   const curLineGroup = useStore((state) => state.editorState.curLineGroup)
 
   // Local State
@@ -580,7 +578,7 @@ export default function Editor(props: EditorProps) {
 
       // Télécharger l'image traitée localement si dans un contexte navigateur standard
       if (enableAutoSaving) {
-        await downloadToOutput(file.name, curRender.src, 'image/png');
+        await downloadToOutput(file.name, curRender as any, 'image/png');
       } else {
         downloadImage(curRender.src, file.name);
       }
