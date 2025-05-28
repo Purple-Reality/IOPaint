@@ -148,6 +148,7 @@ class Api:
         self.router = APIRouter()
         self.queue_lock = threading.Lock()
         self.image_cache = {}
+        self.image_metadata = {} 
         api_middleware(self.app)
 
         self.file_manager = self._build_file_manager()
@@ -387,6 +388,7 @@ class Api:
             logger.error("Full traceback:")
             traceback.print_exc()
             raise HTTPException(status_code=500, detail=str(e))
+    # CORRECTION DE L'INDENTATION - Ces méthodes doivent être à l'intérieur de la classe Api
 
     def api_unity_image_url(self, req: UnityImageUrlRequest):
         try:
@@ -404,10 +406,34 @@ class Api:
             timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
             image_id = f"unity_image_{timestamp}"
             logger.info(f"Generated image ID: {image_id}")
+
+            # NOUVEAU : Extraire les métadonnées de l'URL
+            # URL format: https://app.eolear.com/images/cubemaps/kr_nNmq_dO8LksFiWRXvMg/kr_nNmq_dO8LksFiWRXvMg_f.png
+            url_parts = req.image_url.split('/')
+            filename = url_parts[-1]  # kr_nNmq_dO8LksFiWRXvMg_f.png
+            pano_id = url_parts[-2]   # kr_nNmq_dO8LksFiWRXvMg
+            
+            # CORRECTION : Extraire la face du nom de fichier
+            filename_without_ext = filename.split('.')[0]  # kr_nNmq_dO8LksFiWRXvMg_f
+            face_letter = filename_without_ext.split('_')[-1]  # f
             
             # Stocker en cache mémoire (pas en fichier)
             self.image_cache[image_id] = image_data
             logger.info(f"Image cached in memory with ID: {image_id}")
+
+            # Stocker les métadonnées avec l'image
+            self.image_metadata[image_id] = {
+                "original_url": req.image_url,
+                "pano_id": pano_id,
+                "face_letter": face_letter,
+                "filename_base": filename_without_ext,  # kr_nNmq_dO8LksFiWRXvMg_f
+                "original_filename": filename,  # kr_nNmq_dO8LksFiWRXvMg_f.png
+                "modified_filename": f"{filename_without_ext}_m.png"  # kr_nNmq_dO8LksFiWRXvMg_f_m.png
+            }
+            
+            logger.info(f"Image cached with metadata: pano_id={pano_id}, face={face_letter}")
+            logger.info(f"Original filename: {filename}")
+            logger.info(f"Modified filename will be: {filename_without_ext}_m.png")
 
             # Générer l'URL de redirection vers l'interface web avec ?image=...
             redirect_url = f"/?image={image_id}"
@@ -420,6 +446,71 @@ class Api:
             logger.error("Full traceback:")
             traceback.print_exc()
             raise HTTPException(status_code=500, detail=str(e))
+
+    def api_send_to_unity(self, req: UnityImageRequest):
+        logger.info("Received processed image from frontend for Unity")
+        
+        try:
+            # Decode base64 image
+            img_data = base64.b64decode(req.image)
+            logger.info(f"Decoded base64 image, size: {len(img_data)} bytes")
+
+            # NOUVEAU : Récupérer la dernière image Unity traitée avec ses métadonnées
+            latest_unity_image = None
+            latest_timestamp = None
+            
+            for image_id in self.image_cache.keys():
+                if image_id.startswith("unity_image_"):
+                    # Extraire le timestamp du nom
+                    timestamp_str = image_id.replace("unity_image_", "")
+                    if latest_timestamp is None or timestamp_str > latest_timestamp:
+                        latest_timestamp = timestamp_str
+                        latest_unity_image = image_id
+            
+            if latest_unity_image and latest_unity_image in self.image_metadata:
+                metadata = self.image_metadata[latest_unity_image]
+                
+                # NOUVEAU : Construire le chemin de destination avec _m
+                modified_filename = metadata["modified_filename"]  # kr_nNmq_dO8LksFiWRXvMg_f_m.png
+                
+                # Sauvegarder dans le dossier output d'IOPaint
+                output_path = self.config.output_dir / modified_filename
+                
+                with open(output_path, "wb") as f:
+                    f.write(img_data)
+                
+                logger.info(f"Processed image saved to: {output_path}")
+                logger.info(f"Original was: {metadata['original_filename']}")
+                logger.info(f"Modified saved as: {modified_filename}")
+                
+                # NOUVEAU : Créer un fichier de notification pour Unity
+                notification_file = self.config.output_dir / f"unity_notification_{latest_timestamp}.json"
+                notification_data = {
+                    "status": "ready",
+                    "pano_id": metadata["pano_id"],
+                    "face_letter": metadata["face_letter"],
+                    "original_filename": metadata["original_filename"],
+                    "modified_filename": modified_filename,
+                    "modified_path": str(output_path),
+                    "timestamp": latest_timestamp
+                }
+                
+                import json
+                with open(notification_file, "w") as f:
+                    json.dump(notification_data, f, indent=2)
+                
+                logger.info(f"Notification file created: {notification_file}")
+                
+            else:
+                logger.error("No Unity image found in cache to associate with processed image")
+                raise HTTPException(status_code=400, detail="No Unity image reference found")
+
+            return Response(status_code=200)
+
+        except Exception as e:
+            logger.error(f"Error processing and saving image for Unity: {e}")
+            traceback.print_exc()
+            raise HTTPException(status_code=500, detail="Error processing and saving image")
 
     def api_get_cached_image(self, image_id: str):
         """Servir les images depuis le cache mémoire"""
@@ -434,34 +525,6 @@ class Api:
             content=self.image_cache[image_id],
             media_type="image/png"
         )
-
-    # New endpoint to receive processed image from frontend and save it for Unity
-    def api_send_to_unity(self, req: UnityImageRequest):
-        logger.info("Received processed image from frontend for Unity")
-        if not self.config.output_dir:
-            logger.error("Output directory not configured.")
-            raise HTTPException(
-                status_code=400, detail="Output directory not configured"
-            )
-
-        output_path = self.config.output_dir / "unity_processed_image.png"
-
-        try:
-            # Decode base64 image
-            img_data = base64.b64decode(req.image)
-            logger.info(f"Decoded base64 image, size: {len(img_data)} bytes")
-
-            # Save the image
-            with open(output_path, "wb") as f:
-                f.write(img_data)
-            logger.info(f"Processed image saved to: {output_path}")
-
-            return Response(status_code=200)
-
-        except Exception as e:
-            logger.error(f"Error processing and saving image for Unity: {e}")
-            traceback.print_exc()
-            raise HTTPException(status_code=500, detail="Error processing and saving image")
 
     def launch(self):
         self.app.include_router(self.router)
