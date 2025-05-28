@@ -8,7 +8,6 @@ from typing import Optional, Dict, List
 
 import cv2
 import numpy as np
-import socketio
 import torch
 import base64
 import datetime
@@ -32,7 +31,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from loguru import logger
-from socketio import AsyncServer
 
 from iopaint.file_manager import FileManager
 from iopaint.helper import (
@@ -137,9 +135,6 @@ def api_middleware(app: FastAPI):
     app.add_middleware(CORSMiddleware, **cors_options)
 
 
-global_sio: AsyncServer = None
-
-
 def diffuser_callback(pipe, step: int, timestep: int, callback_kwargs: Dict = {}):
     # self: DiffusionPipeline, step: int, timestep: int, callback_kwargs: Dict
     logger.info(f"diffusion callback: step={step}, timestep={timestep}")
@@ -152,6 +147,7 @@ class Api:
         self.config = config
         self.router = APIRouter()
         self.queue_lock = threading.Lock()
+        self.image_cache = {}
         api_middleware(self.app)
 
         self.file_manager = self._build_file_manager()
@@ -175,9 +171,13 @@ class Api:
         self.add_api_route("/api/v1/unity_image", self.api_unity_image, methods=["POST"])
         self.add_api_route("/api/v1/send_to_unity", self.api_send_to_unity, methods=["POST"])
         self.add_api_route("/api/v1/unity_image_url", self.api_unity_image_url, methods=["POST"])
+        self.add_api_route("/api/v1/cached_image/{image_id}", self.api_get_cached_image, methods=["GET"])
         # fmt: on
 
         self.app.mount("/", StaticFiles(directory=WEB_APP_DIR, html=True), name="assets")
+        # Mount pour servir les images modifiées depuis /output
+        if self.config.output_dir:
+            self.app.mount("/output", StaticFiles(directory=self.config.output_dir), name="output")
 
     def add_api_route(self, path: str, endpoint, **kwargs):
         return self.app.add_api_route(path, endpoint, **kwargs)
@@ -379,16 +379,6 @@ class Api:
                 f.write(image_data)
             logger.info("Image saved successfully")
 
-            # Encoder l'image reçue à nouveau en base64 pour l'envoyer via WebSocket
-            logger.info("Encoding image for WebSocket transmission")
-            image_base64_encoded = base64.b64encode(image_data).decode('utf-8')
-            logger.info(f"Image encoded, length: {len(image_base64_encoded)}")
-
-            # Émettre un événement WebSocket avec l'image base64
-            logger.info("Emitting WebSocket event")
-            asyncio.run(global_sio.emit("unity_image_received", {"image": image_base64_encoded}))
-            logger.info("WebSocket event emitted successfully")
-
             return {"success": True, "message": "Image received and event emitted"}
 
         except Exception as e:
@@ -410,37 +400,17 @@ class Api:
             image_data = response.content
             logger.info(f"Downloaded image, size: {len(image_data)} bytes")
             
-            # Génération d'un nom de fichier unique avec timestamp
+            # Génération d'un ID unique avec timestamp
             timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"unity_image_{timestamp}.png"
-            logger.info(f"Generated filename: {filename}")
+            image_id = f"unity_image_{timestamp}"
+            logger.info(f"Generated image ID: {image_id}")
             
-            # Sauvegarde de l'image dans le dossier de sortie
-            if not self.config.output_dir:
-                logger.error("Output directory not configured")
-                raise HTTPException(status_code=400, detail="Output directory not configured")
-            
-            if not os.path.exists(self.config.output_dir):
-                logger.info(f"Creating output directory: {self.config.output_dir}")
-                os.makedirs(self.config.output_dir)
-                
-            output_path = os.path.join(self.config.output_dir, filename)
-            logger.info(f"Saving image to: {output_path}")
-            with open(output_path, "wb") as f:
-                f.write(image_data)
-            logger.info("Image saved successfully")
-
-            # Vérifier que l'image existe bien
-            if not os.path.exists(output_path):
-                logger.error(f"Image file not found after saving: {output_path}")
-                raise HTTPException(status_code=500, detail="Failed to save image")
-
-            # Vérifier la taille du fichier
-            file_size = os.path.getsize(output_path)
-            logger.info(f"Saved file size: {file_size} bytes")
+            # Stocker en cache mémoire (pas en fichier)
+            self.image_cache[image_id] = image_data
+            logger.info(f"Image cached in memory with ID: {image_id}")
 
             # Générer l'URL de redirection vers l'interface web avec ?image=...
-            redirect_url = f"/?image={filename}"
+            redirect_url = f"/?image={image_id}"
             logger.info(f"Returning redirect_url: {redirect_url}")
 
             return {"redirect_url": redirect_url}
@@ -450,6 +420,20 @@ class Api:
             logger.error("Full traceback:")
             traceback.print_exc()
             raise HTTPException(status_code=500, detail=str(e))
+
+    def api_get_cached_image(self, image_id: str):
+        """Servir les images depuis le cache mémoire"""
+        logger.info(f"Requested cached image: {image_id}")
+        
+        if image_id not in self.image_cache:
+            logger.error(f"Image {image_id} not found in cache")
+            raise HTTPException(status_code=404, detail="Image not found in cache")
+        
+        logger.info(f"Serving cached image: {image_id}")
+        return Response(
+            content=self.image_cache[image_id],
+            media_type="image/png"
+        )
 
     # New endpoint to receive processed image from frontend and save it for Unity
     def api_send_to_unity(self, req: UnityImageRequest):

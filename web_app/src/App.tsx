@@ -1,6 +1,4 @@
 import { useCallback, useEffect, useRef } from "react"
-import { io } from "socket.io-client";
-
 import useInputImage from "@/hooks/useInputImage"
 import { keepGUIAlive } from "@/lib/utils"
 import { getServerConfig } from "@/lib/api"
@@ -27,15 +25,6 @@ function Home() {
   ])
 
   const userInputImage = useInputImage()
-
-  useEffect(() => {
-  console.log("🏠 App.tsx - userInputImage changed:", userInputImage ? `${userInputImage.name} (${userInputImage.size} bytes)` : "null");
-  }, [userInputImage])
-
-  useEffect(() => {
-    console.log("🏠 App.tsx - file state changed:", file ? `${file.name} (${file.size} bytes)` : "null");
-  }, [file])
-
   const windowSize = useWindowSize()
 
   useEffect(() => {
@@ -59,125 +48,6 @@ function Home() {
     }
     fetchServerConfig()
   }, [])
-
-  useEffect(() => {
-    // Connect to Socket.IO server
-    const wsUrl = `${window.location.origin}`;
-    console.log('Connecting to WebSocket at:', wsUrl);
-    
-    const socket = io(wsUrl, {
-      transports: ['websocket', 'polling'],
-      path: '/socket.io/',
-      reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
-      forceNew: true,
-      timeout: 10000
-    });
-
-    socket.on('connect', () => {
-      console.log('WebSocket connected successfully', socket.id);
-    });
-
-    socket.on('disconnect', (reason) => {
-      console.log('WebSocket disconnected:', reason);
-      if (reason === 'io server disconnect') {
-        // La déconnexion a été initiée par le serveur, on peut essayer de se reconnecter
-        console.log('Attempting to reconnect...');
-        socket.connect();
-      }
-    });
-
-    socket.on('connect_error', (error) => {
-      console.error('WebSocket connection error:', error);
-    });
-
-    socket.on('error', (error) => {
-      console.error('WebSocket error:', error);
-    });
-
-    socket.on('reconnect_attempt', (attemptNumber) => {
-      console.log('Reconnect attempt #', attemptNumber);
-    });
-
-    socket.on('reconnect', (attemptNumber) => {
-      console.log('Successfully reconnected after', attemptNumber, 'attempts.');
-    });
-
-    socket.on('reconnect_error', (error) => {
-      console.error('Reconnect error:', error);
-    });
-
-    socket.on('reconnect_failed', () => {
-      console.error('Reconnect failed.');
-    });
-
-    socket.io.on('open', () => {
-      console.log('Socket.IO connection underlying transport opened.');
-    });
-
-    socket.io.on('close', (reason) => {
-      console.log('Socket.IO connection underlying transport closed:', reason);
-    });
-
-    socket.io.on('upgrade' as any, (transport: any) => {
-      console.log('Socket.IO transport upgraded to', transport.name);
-    });
-
-    socket.io.on('packet', (packet) => {
-      console.log('Received packet:', packet);
-    });
-
-    // Listener for unity_image_received event
-    socket.on("unity_image_received", async (data) => {
-      console.log("Unity image received via WebSocket:", data);
-      if (data && data.image) {
-        try {
-          console.log("Processing received image data...");
-          // Convert base64 to Blob
-          const byteCharacters = atob(data.image);
-          console.log("Base64 decoded, length:", byteCharacters.length);
-          const byteNumbers = new Array(byteCharacters.length);
-          for (let i = 0; i < byteCharacters.length; i++) {
-            byteNumbers[i] = byteCharacters.charCodeAt(i);
-          }
-          const byteArray = new Uint8Array(byteNumbers);
-          console.log("Created byte array, length:", byteArray.length);
-          // Assumes PNG for now, adjust if needed based on actual image type
-          const blob = new Blob([byteArray], { type: "image/png" }); 
-          console.log("Created blob:", blob.size, "bytes");
-
-          // Convert Blob to File
-          const file = new File([blob], "unity-image.png", { type: "image/png" });
-          console.log("Created file object:", file.name, file.size, "bytes");
-
-          // Set the received file
-          console.log("Setting file in state...");
-          setFile(file);
-          console.log("File set successfully");
-
-          // Vérifier si le fichier a été correctement défini
-          setTimeout(() => {
-            console.log("Current file state:", file);
-          }, 1000);
-
-        } catch (error) {
-          console.error("Error processing received image via WebSocket:", error);
-          // Afficher une notification d'erreur si nécessaire
-          // toast({ variant: "destructive", description: "Failed to load image from Unity.", });
-        }
-      } else {
-        console.warn("Received WebSocket event but no image data found:", data);
-      }
-    });
-
-    // Clean up on component unmount
-    return () => {
-      console.log("Disconnecting Socket.IO");
-      socket.off("unity_image_received");
-      socket.disconnect();
-    };
-  }, [setFile]); // Dépendance à setFile
 
   const dragCounter = useRef(0)
 
