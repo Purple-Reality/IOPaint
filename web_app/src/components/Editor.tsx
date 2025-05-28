@@ -568,6 +568,18 @@ export default function Editor(props: EditorProps) {
         }
 
         console.log("Processed image sent to backend successfully.");
+        
+        console.log("Notification envoyée à Unity...");
+        if ((window as any).unityInstance) {
+          try {
+            (window as any).unityInstance.SendMessage('InpaintingManager', 'OnImageProcessedByIOPaint', 'image_ready');
+            console.log("Unity notifié avec succès!");
+          } catch (error) {
+            console.error("Erreur lors de la notification Unity:", error);
+          }
+        } else {
+          console.warn("Unity instance non trouvée - pas de notification envoyée");
+        }
         toast({
           description: "Image traitée envoyée au backend pour Unity",
         });
