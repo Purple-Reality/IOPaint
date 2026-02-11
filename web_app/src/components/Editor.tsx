@@ -570,15 +570,29 @@ export default function Editor(props: EditorProps) {
         console.log("Processed image sent to backend successfully.");
         
         console.log("Notification envoyée à Unity...");
-        if ((window as any).unityInstance) {
+
+        // 1. Desktop : communication via Vuplex WebView
+        if ((window as any).vuplex) {
+          try {
+            (window as any).vuplex.postMessage(JSON.stringify({
+              action: "inpaintDone"
+            }));
+            console.log("Unity notifié via Vuplex WebView !");
+          } catch (error) {
+            console.error("Erreur notification Vuplex:", error);
+          }
+        }
+        // 2. WebGL : communication via unityInstance.SendMessage
+        else if ((window as any).unityInstance) {
           try {
             (window as any).unityInstance.SendMessage('InpaintingManager', 'OnImageProcessedByIOPaint', 'image_ready');
-            console.log("Unity notifié avec succès!");
+            console.log("Unity notifié via SendMessage (WebGL) !");
           } catch (error) {
-            console.error("Erreur lors de la notification Unity:", error);
+            console.error("Erreur notification Unity WebGL:", error);
           }
-        } else {
-          console.warn("Unity instance non trouvée - pas de notification envoyée");
+        }
+        else {
+          console.warn("Ni Vuplex ni unityInstance trouvé - pas de notification");
         }
         toast({
           description: "Image traitée envoyée au backend pour Unity",
